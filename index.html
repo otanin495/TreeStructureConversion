@@ -330,20 +330,38 @@
             if (!loudsStr.startsWith('10')) {
                 throw new Error("LOUDSは'10'で始まる必要があります");
             }
-
+        
             const nodes = [];
-            nodes.push([-1, 0]);
+            const children = [];
 
-            let currentNode = 0;
-            for (let i = 2; i < loudsStr.length; i++) {
+            let childCount = 0;
+            
+            for (let i = 0; i < loudsStr.length; i++) {
                 if (loudsStr[i] === '1') {
-                    const depth = nodes[currentNode][1] + 1;
-                    nodes.push([currentNode, depth]);
+                    childCount++;
                 } else {
-                    currentNode++;
+                    children.push(childCount);
+                    childCount = 0;
                 }
             }
 
+            nodes.push([-1, 0]);
+            
+            let currentParent = 0;
+            let childrenProcessed = 0;
+            
+            for (let i = 1; i < children.length; i++) {
+                while (currentParent < children.length && childrenProcessed >= children[currentParent]) {
+                    currentParent++;
+                    childrenProcessed = 0;
+                }
+                
+                const depth = nodes[currentParent][1] + 1;
+                nodes.push([currentParent, depth]);
+                
+                childrenProcessed++;
+            }
+            
             return nodes;
         }
 
