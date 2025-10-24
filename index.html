@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOUDS 木構造の可視化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .input-section {
+            padding: 20px;
+            background: #fafafa;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #357ABD;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 600px;
+            background: white;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        .canvas-container:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .info-section {
+            padding: 15px 20px;
+            background: #f0f8ff;
+            border-top: 1px solid #ddd;
+            color: #2C3E50;
+            font-size: 14px;
+        }
+
+        .info-section span {
+            margin-right: 20px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-section">
+            <div class="input-group">
+                <label for="louds-input">LOUDSのビット列:</label>
+                <input type="text" id="louds-input" value="101011101010101101101101010101010101101110111110101110111010101010101010101010101010101010101101110110111011010110110111011101011011101110111011011110101010101010101010101010101010101010101010101010101010101010101010101010101010101011010111011011011101110111011101101010110110101101101010101101011011010101010111011101101010111010101011011101101110101010101010101010010101010101010101010101010101010101010100101010101010010101010101010101010101010101010101010101010101010101001010101001010101010101011011011011010110110101011011010110110101010110101010101101101010110110110110101010110101010101010101001010101010110101101010101010010101010101010101010000101010101010101010101010100010101010010101010000101001000101010100101010101010101010000101000100100000000001001010000000010000100001010101010101010101010101010010101001010101010101010101010101010101010101010101001001010000000000000000000000000000000000000000000">
+            </div>
+            <div class="input-group">
+                <label for="values-input">値 (カンマ区切り):</label>
+                <input type="text" id="values-input" value="Root,-1,11,7,13,15,2,8,14,13,15,7,15,7,13,14,1,2,14,3,12,3,15,0,4,8,0,1,4,12,15,7,1,8,13,2,4,7,1,4,8,8,13,14,14,14,3,14,12,2,12,4,3,8,3,0,15,0,1,3,3,4,0,12,14,0,4,15,3,15,12,15,0,1,4,0,1,4,-1,8,13,1,2,13,0,1,2,4,7,8,2,7,1,2,4,8,8,4,8,8,-1,14,14,14,14,13,4,14,4,4,0,1,1,1,4,14,4,12,1,1,12,4,4,4,4,12,12,1,1,1,1,3,1,-1,1,-1,4,12,15,0,1,3,12,0,3,0,1,4,12,13,3,12,13,3,12,13,0,3,13,0,12,3,12,1,12,12,15,3,3,15,0,12,4,0,15,1,12,3,0,12,0,4,13,0,13,13,0,1,2,1,2,8,2,8,0,7,0,4,8,7,7,0,4,8,0,4,8,1,2,0,1,2,4,4,12,-1,-1,-1,-1,-1,8,-1,4,4,-1,-1,12,-1,-1,12,13,13,-1,3,-1,14,0,-1,-1,0,-1,-1,-1,-1,-1,14,14,12,-1,0,12,-1,3,2,4,12,2,1,2,2,1,-1,1,-1,0,-1,8,8,8,8,4,4,1,3,4,8,8,4,1,2,2,1,15,12,8,3,12,1,12,1,3,3,12,0,1,12,12,13,13,12,12,13,3,13,3,12,13,3,13,3,3,0,0,3,12,0,12,3,3,12,1,3,15,12,0,15,0,3,3,12,0,3,15,15,3,1,3,4,3,0,2,0,0,8,0,1,0,0,8,8,1,2,8,0,2,12,0,4,0,0,0,2,-1,4,0,0,-1,1,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,12,-1,-1,-1,12,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,1,-1,0,2,8,12,3,12,1,3,1,12,3,12,12,1,13,12,13,13,3,13,13,3,3,0,3,12,3,3,1,0,15,0,3,0,12,3,3,0,3,1,3,3,2,0,0">
+            </div>
+            <div class="button-group">
+                <button onclick="visualize()">木構造を可視化</button>
+                <button onclick="resetZoom()">ズームリセット</button>
+                <button onclick="toggleColorStart()">手番切り替え（白⇔黒）</button>
+            </div>
+        </div>
+        <div class="canvas-container" id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="info-section" id="info-section">
+            木構造を可視化ボタンを押してください
+        </div>
+    </div>
+
+    <script>
+        let canvas, ctx;
+        let scale = 1.0;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let startWithWhite = true;
+        let tree = null;
+        let positions = null;
+
+        window.onload = function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            const container = document.getElementById('canvas-container');
+            
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            canvas.addEventListener('wheel', onWheel, { passive: false });
+            canvas.addEventListener('mousedown', onDragStart);
+            canvas.addEventListener('mousemove', onDragMove);
+            canvas.addEventListener('mouseup', onDragEnd);
+            canvas.addEventListener('mouseleave', onDragEnd);
+
+            window.addEventListener('resize', () => {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                if (tree && positions) {
+                    positions = calculatePositions(tree);
+                    drawTree(tree, positions);
+                }
+            });
+        };
+
+        function onWheel(e) {
+            e.preventDefault();
+            if (!tree || !positions) return;
+
+            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const oldScale = scale;
+            scale *= zoomFactor;
+            scale = Math.max(0.1, Math.min(scale, 10.0));
+
+            const actualZoom = scale / oldScale;
+            offsetX = mouseX - (mouseX - offsetX) * actualZoom;
+            offsetY = mouseY - (mouseY - offsetY) * actualZoom;
+
+            drawTree(tree, positions);
+        }
+
+        function onDragStart(e) {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+        }
+
+        function onDragMove(e) {
+            if (!isDragging || !tree) return;
+
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+
+            offsetX += dx;
+            offsetY += dy;
+
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            drawTree(tree, positions);
+        }
+
+        function onDragEnd() {
+            isDragging = false;
+        }
+
+        function toggleColorStart() {
+            startWithWhite = !startWithWhite;
+            if (tree && positions) {
+                drawTree(tree, positions);
+            }
+        }
+
+        function resetZoom() {
+            scale = 1.0;
+            offsetX = 0;
+            offsetY = 0;
+            if (tree && positions) {
+                drawTree(tree, positions);
+            }
+        }
+
+        function parseLOUDS(loudsStr) {
+            if (!/^[01]+$/.test(loudsStr)) {
+                throw new Error("0と1のみを入力してください");
+            }
+            if (!loudsStr.startsWith('10')) {
+                throw new Error("LOUDSは'10'で始まる必要があります");
+            }
+
+            const nodes = [];
+            nodes.push([-1, 0]);
+
+            let currentNode = 0;
+            for (let i = 2; i < loudsStr.length; i++) {
+                if (loudsStr[i] === '1') {
+                    const depth = nodes[currentNode][1] + 1;
+                    nodes.push([currentNode, depth]);
+                } else {
+                    currentNode++;
+                }
+            }
+
+            return nodes;
+        }
+
+        function buildTree(nodes, values) {
+            if (values.length < nodes.length) {
+                throw new Error(`値の数が不足しています（ノード数: ${nodes.length}, 値の数: ${values.length}）`);
+            }
+
+            const tree = {};
+            for (let idx = 0; idx < nodes.length; idx++) {
+                tree[idx] = {
+                    parent: nodes[idx][0],
+                    children: [],
+                    depth: nodes[idx][1],
+                    value: idx < values.length ? values[idx] : `Node${idx}`
+                };
+            }
+
+            for (let idx = 0; idx < nodes.length; idx++) {
+                if (nodes[idx][0] >= 0) {
+                    tree[nodes[idx][0]].children.push(idx);
+                }
+            }
+
+            return tree;
+        }
+
+        function calculatePositions(tree) {
+            if (!tree) return {};
+
+            const maxDepth = Math.max(...Object.values(tree).map(n => n.depth));
+            const verticalSpacing = canvas.height / (maxDepth + 2);
+            const minHorizontalSpacing = 40;
+
+            const subtreeWidths = {};
+            function calcWidths(nodeIdx) {
+                const node = tree[nodeIdx];
+                const children = node.children;
+
+                if (children.length === 0) {
+                    subtreeWidths[nodeIdx] = minHorizontalSpacing;
+                    return minHorizontalSpacing;
+                }
+
+                const totalWidth = children.reduce((sum, child) => sum + calcWidths(child), 0);
+                subtreeWidths[nodeIdx] = Math.max(totalWidth, minHorizontalSpacing);
+                return subtreeWidths[nodeIdx];
+            }
+
+            calcWidths(0);
+
+            const positions = {};
+            function positionNode(nodeIdx, centerX, y) {
+                positions[nodeIdx] = [centerX, y];
+
+                const node = tree[nodeIdx];
+                const children = node.children;
+
+                if (children.length === 0) return;
+
+                const childWidths = children.map(child => subtreeWidths[child]);
+                const totalChildWidth = childWidths.reduce((a, b) => a + b, 0);
+
+                let currentX = centerX - totalChildWidth / 2;
+
+                for (let i = 0; i < children.length; i++) {
+                    const childWidth = childWidths[i];
+                    const childCenter = currentX + childWidth / 2;
+                    const childY = y + verticalSpacing;
+
+                    positionNode(children[i], childCenter, childY);
+                    currentX += childWidth;
+                }
+            }
+
+            const rootX = canvas.width / 2;
+            const rootY = verticalSpacing;
+            positionNode(0, rootX, rootY);
+
+            return positions;
+        }
+
+        function drawTree(tree, positions) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!tree || !positions) return;
+
+            for (const [nodeIdx, node] of Object.entries(tree)) {
+                if (node.parent >= 0) {
+                    const [x1, y1] = positions[node.parent];
+                    const [x2, y2] = positions[nodeIdx];
+
+                    const sx1 = x1 * scale + offsetX;
+                    const sy1 = y1 * scale + offsetY;
+                    const sx2 = x2 * scale + offsetX;
+                    const sy2 = y2 * scale + offsetY;
+
+                    ctx.strokeStyle = 'gray';
+                    ctx.lineWidth = 1 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(sx1, sy1);
+                    ctx.lineTo(sx2, sy2);
+                    ctx.stroke();
+                }
+            }
+
+            for (const [nodeIdx, pos] of Object.entries(positions)) {
+                const node = tree[nodeIdx];
+                const [x, y] = pos;
+
+                const sx = x * scale + offsetX;
+                const sy = y * scale + offsetY;
+                const radius = 12 * scale;
+
+                let color, textColor;
+                if (parseInt(nodeIdx) === 0) {
+                    color = '#4A90E2';
+                    textColor = 'white';
+                } else {
+                    if (startWithWhite) {
+                        color = node.depth % 2 === 0 ? 'white' : 'black';
+                        textColor = node.depth % 2 === 0 ? 'black' : 'white';
+                    } else {
+                        color = node.depth % 2 === 0 ? 'black' : 'white';
+                        textColor = node.depth % 2 === 0 ? 'white' : 'black';
+                    }
+                }
+
+                const isLeaf = node.children.length === 0;
+
+                if (isLeaf) {
+                    const size = radius;
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#2C3E50';
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy - size);
+                    ctx.lineTo(sx - size, sy + size);
+                    ctx.lineTo(sx + size, sy + size);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#2C3E50';
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                const fontSize = Math.max(6, 10 * scale);
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const outlineColor = textColor === 'black' ? 'white' : 'black';
+                const outlineWidth = Math.max(1, 1.5 * scale);
+
+                ctx.strokeStyle = outlineColor;
+                ctx.lineWidth = outlineWidth * 2;
+                ctx.strokeText(node.value, sx, sy - 3 * scale);
+
+                ctx.fillStyle = textColor;
+                ctx.fillText(node.value, sx, sy - 3 * scale);
+
+                const smallFontSize = Math.max(4, 7 * scale);
+                ctx.font = `${smallFontSize}px Arial`;
+
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = Math.max(1, 1 * scale) * 2;
+                ctx.strokeText(`#${nodeIdx}`, sx, sy + radius - 5 * scale);
+
+                ctx.fillStyle = 'gray';
+                ctx.fillText(`#${nodeIdx}`, sx, sy + radius - 5 * scale);
+            }
+        }
+
+        function visualize() {
+            try {
+                const loudsStr = document.getElementById('louds-input').value.trim();
+                const valuesStr = document.getElementById('values-input').value.trim();
+
+                if (!loudsStr) {
+                    alert("LOUDSビット列を入力してください");
+                    return;
+                }
+
+                const values = valuesStr ? valuesStr.split(',').map(v => v.trim()) : [];
+
+                const nodes = parseLOUDS(loudsStr);
+                tree = buildTree(nodes, values);
+                positions = calculatePositions(tree);
+
+                resetZoom();
+
+                const leafCount = Object.values(tree).filter(node => node.children.length === 0).length;
+                const maxDepth = Math.max(...Object.values(tree).map(n => n.depth));
+
+                document.getElementById('info-section').innerHTML = 
+                    `<span>ノード数: ${nodes.length}</span>` +
+                    `<span>最大深さ: ${maxDepth}</span>` +
+                    `<span>LOUDSビット数: ${loudsStr.length}</span>` +
+                    `<span>末端ノード数: ${leafCount}</span>`;
+
+            } catch (e) {
+                alert("エラー: " + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
