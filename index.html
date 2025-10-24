@@ -391,56 +391,56 @@
 
         function calculatePositions(tree) {
             if (!tree) return {};
-
+        
             const maxDepth = Math.max(...Object.values(tree).map(n => n.depth));
-            const verticalSpacing = canvas.height / (maxDepth + 2);
+            const verticalSpacing = 40;
             const minHorizontalSpacing = 40;
-
+        
             const subtreeWidths = {};
             function calcWidths(nodeIdx) {
                 const node = tree[nodeIdx];
                 const children = node.children;
-
+        
                 if (children.length === 0) {
                     subtreeWidths[nodeIdx] = minHorizontalSpacing;
                     return minHorizontalSpacing;
                 }
-
+        
                 const totalWidth = children.reduce((sum, child) => sum + calcWidths(child), 0);
                 subtreeWidths[nodeIdx] = Math.max(totalWidth, minHorizontalSpacing);
                 return subtreeWidths[nodeIdx];
             }
-
+        
             calcWidths(0);
-
+        
             const positions = {};
             function positionNode(nodeIdx, centerX, y) {
                 positions[nodeIdx] = [centerX, y];
-
+        
                 const node = tree[nodeIdx];
                 const children = node.children;
-
+        
                 if (children.length === 0) return;
-
+        
                 const childWidths = children.map(child => subtreeWidths[child]);
                 const totalChildWidth = childWidths.reduce((a, b) => a + b, 0);
-
+        
                 let currentX = centerX - totalChildWidth / 2;
-
+        
                 for (let i = 0; i < children.length; i++) {
                     const childWidth = childWidths[i];
                     const childCenter = currentX + childWidth / 2;
                     const childY = y + verticalSpacing;
-
+        
                     positionNode(children[i], childCenter, childY);
                     currentX += childWidth;
                 }
             }
-
+        
             const rootX = canvas.width / 2;
-            const rootY = verticalSpacing;
+            const rootY = 10;
             positionNode(0, rootX, rootY);
-
+        
             return positions;
         }
 
