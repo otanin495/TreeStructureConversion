@@ -83,6 +83,7 @@
             background: white;
             overflow: hidden;
             cursor: grab;
+            touch-action: none;
         }
 
         .canvas-container:active {
@@ -144,6 +145,9 @@
         let tree = null;
         let positions = null;
 
+        let touches = [];
+        let lastTouchDistance = 0;
+
         window.onload = function() {
             canvas = document.getElementById('canvas');
             ctx = canvas.getContext('2d');
@@ -157,6 +161,10 @@
             canvas.addEventListener('mousemove', onDragMove);
             canvas.addEventListener('mouseup', onDragEnd);
             canvas.addEventListener('mouseleave', onDragEnd);
+
+            canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+            canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 
             window.addEventListener('resize', () => {
                 canvas.width = container.clientWidth;
@@ -211,6 +219,92 @@
 
         function onDragEnd() {
             isDragging = false;
+        }
+
+        function getTouchDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function getTouchCenter(touch1, touch2) {
+            return {
+                x: (touch1.clientX + touch2.clientX) / 2,
+                y: (touch1.clientY + touch2.clientY) / 2
+            };
+        }
+
+        function onTouchStart(e) {
+            e.preventDefault();
+            touches = Array.from(e.touches);
+
+            if (touches.length === 1) {
+                isDragging = true;
+                dragStartX = touches[0].clientX;
+                dragStartY = touches[0].clientY;
+            } else if (touches.length === 2) {
+                isDragging = false;
+                lastTouchDistance = getTouchDistance(touches[0], touches[1]);
+            }
+        }
+
+        function onTouchMove(e) {
+            e.preventDefault();
+            if (!tree) return;
+
+            touches = Array.from(e.touches);
+
+            if (touches.length === 1 && isDragging) {
+                const dx = touches[0].clientX - dragStartX;
+                const dy = touches[0].clientY - dragStartY;
+
+                offsetX += dx;
+                offsetY += dy;
+
+                dragStartX = touches[0].clientX;
+                dragStartY = touches[0].clientY;
+
+                drawTree(tree, positions);
+            } else if (touches.length === 2) {
+                const currentDistance = getTouchDistance(touches[0], touches[1]);
+                const center = getTouchCenter(touches[0], touches[1]);
+                
+                const rect = canvas.getBoundingClientRect();
+                const centerX = center.x - rect.left;
+                const centerY = center.y - rect.top;
+
+                if (lastTouchDistance > 0) {
+                    const zoomFactor = currentDistance / lastTouchDistance;
+                    
+                    const oldScale = scale;
+                    scale *= zoomFactor;
+                    scale = Math.max(0.1, Math.min(scale, 10.0));
+
+                    const actualZoom = scale / oldScale;
+                    offsetX = centerX - (centerX - offsetX) * actualZoom;
+                    offsetY = centerY - (centerY - offsetY) * actualZoom;
+
+                    drawTree(tree, positions);
+                }
+
+                lastTouchDistance = currentDistance;
+            }
+        }
+
+        function onTouchEnd(e) {
+            e.preventDefault();
+            touches = Array.from(e.touches);
+
+            if (touches.length === 0) {
+                isDragging = false;
+                lastTouchDistance = 0;
+            } else if (touches.length === 1) {
+                // Switch back to pan mode
+                isDragging = true;
+                dragStartX = touches[0].clientX;
+                dragStartY = touches[0].clientY;
+                lastTouchDistance = 0;
+            }
         }
 
         function toggleColorStart() {
