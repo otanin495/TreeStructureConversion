@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOUDS 木構造の可視化</title>
@@ -123,6 +124,8 @@
                 <button onclick="visualize()">木構造を可視化</button>
                 <button onclick="resetZoom()">ズームリセット</button>
                 <button onclick="toggleColorStart()">手番切り替え（白⇔黒）</button>
+                <button onclick="downloadPDF()">PDFでダウンロード</button>
+                <button onclick="downloadSVG()">SVGでダウンロード</button>
             </div>
         </div>
         <div class="canvas-container" id="canvas-container">
@@ -179,20 +182,25 @@
         function onWheel(e) {
             e.preventDefault();
             if (!tree || !positions) return;
-
+        
             const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-
+        
+            // マウス位置のワールド座標を計算
+            const worldX = (mouseX - offsetX) / scale;
+            const worldY = (mouseY - offsetY) / scale;
+        
+            // スケールを更新
             const oldScale = scale;
             scale *= zoomFactor;
             scale = Math.max(0.1, Math.min(scale, 10.0));
-
-            const actualZoom = scale / oldScale;
-            offsetX = mouseX - (mouseX - offsetX) * actualZoom;
-            offsetY = mouseY - (mouseY - offsetY) * actualZoom;
-
+        
+            // 新しいオフセットを計算（マウス位置を中心に拡大縮小）
+            offsetX = mouseX - worldX * scale;
+            offsetY = mouseY - worldY * scale;
+        
             drawTree(tree, positions);
         }
 
@@ -492,27 +500,14 @@
 
                 const isLeaf = node.children.length === 0;
 
-                if (isLeaf) {
-                    const size = radius;
-                    ctx.fillStyle = color;
-                    ctx.strokeStyle = '#2C3E50';
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy - size);
-                    ctx.lineTo(sx - size, sy + size);
-                    ctx.lineTo(sx + size, sy + size);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                } else {
-                    ctx.fillStyle = color;
-                    ctx.strokeStyle = '#2C3E50';
-                    ctx.lineWidth = 2 * scale;
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.stroke();
-                }
+                // 葉ノードも円で描画
+                ctx.fillStyle = color;
+                ctx.strokeStyle = '#2C3E50';
+                ctx.lineWidth = 2 * scale;
+                ctx.beginPath();
+                ctx.arc(sx, sy, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
 
                 const fontSize = Math.max(6, 10 * scale);
                 ctx.font = `bold ${fontSize}px Arial`;
@@ -522,22 +517,15 @@
                 const outlineColor = textColor === 'black' ? 'white' : 'black';
                 const outlineWidth = Math.max(1, 1.5 * scale);
 
+                // 三角形の場合は少し下にずらす
+                const textOffsetY = 0; // すべて円なのでオフセット不要
+
                 ctx.strokeStyle = outlineColor;
                 ctx.lineWidth = outlineWidth * 2;
-                ctx.strokeText(node.value, sx, sy - 3 * scale);
+                ctx.strokeText(node.value, sx, sy + textOffsetY);
 
                 ctx.fillStyle = textColor;
-                ctx.fillText(node.value, sx, sy - 3 * scale);
-
-                const smallFontSize = Math.max(4, 7 * scale);
-                ctx.font = `${smallFontSize}px Arial`;
-
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = Math.max(1, 1 * scale) * 2;
-                ctx.strokeText(`#${nodeIdx}`, sx, sy + radius - 5 * scale);
-
-                ctx.fillStyle = 'gray';
-                ctx.fillText(`#${nodeIdx}`, sx, sy + radius - 5 * scale);
+                ctx.fillText(node.value, sx, sy + textOffsetY);
             }
         }
 
@@ -571,6 +559,192 @@
             } catch (e) {
                 alert("エラー: " + e.message);
             }
+        }
+
+        function downloadPDF() {
+            if (!tree || !positions) {
+                alert("先に木構造を可視化してください");
+                return;
+            }
+        
+            // 現在の状態を保存
+            const originalScale = scale;
+            const originalOffsetX = offsetX;
+            const originalOffsetY = offsetY;
+        
+            // 全ノードの位置から境界を計算
+            const allX = Object.values(positions).map(p => p[0]);
+            const allY = Object.values(positions).map(p => p[1]);
+            
+            const margin = 30;
+            const minX = Math.min(...allX) - margin;
+            const maxX = Math.max(...allX) + margin;
+            const minY = Math.min(...allY) - margin;
+            const maxY = Math.max(...allY) + margin;
+            
+            const treeWidth = maxX - minX;
+            const treeHeight = maxY - minY;
+        
+            // 一時的なキャンバスを作成
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = treeWidth;
+            tempCanvas.height = treeHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+        
+            // 一時的にスケールとオフセットを調整して描画
+            const savedCanvas = canvas;
+            const savedCtx = ctx;
+            
+            canvas = tempCanvas;
+            ctx = tempCtx;
+            scale = 1.0;
+            offsetX = -minX;
+            offsetY = -minY;
+        
+            // 木構造を描画
+            drawTree(tree, positions);
+        
+            // 元に戻す
+            canvas = savedCanvas;
+            ctx = savedCtx;
+            scale = originalScale;
+            offsetX = originalOffsetX;
+            offsetY = originalOffsetY;
+        
+            // 元の表示を再描画
+            drawTree(tree, positions);
+        
+            // PDFの向きを決定
+            const orientation = treeWidth > treeHeight ? 'landscape' : 'portrait';
+            
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: orientation,
+                unit: 'pt',
+                format: 'a4'
+            });
+        
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            // マージンを考慮
+            const pdfMargin = 40;
+            const availableWidth = pageWidth - 2 * pdfMargin;
+            const availableHeight = pageHeight - 2 * pdfMargin;
+            
+            // スケールを計算（アスペクト比を保持）
+            const scaleX = availableWidth / treeWidth;
+            const scaleY = availableHeight / treeHeight;
+            const pdfScale = Math.min(scaleX, scaleY);
+            
+            const scaledWidth = treeWidth * pdfScale;
+            const scaledHeight = treeHeight * pdfScale;
+            
+            // 中央配置
+            const x = pdfMargin + (availableWidth - scaledWidth) / 2;
+            const y = pdfMargin + (availableHeight - scaledHeight) / 2;
+        
+            // 画像をPDFに追加
+            const imgData = tempCanvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+        
+            pdf.save('louds-tree.pdf');
+        }
+        function downloadSVG() {
+            if (!tree || !positions) {
+                alert("先に木構造を可視化してください");
+                return;
+            }
+        
+            // 全ノードの位置から境界を計算
+            const allX = Object.values(positions).map(p => p[0]);
+            const allY = Object.values(positions).map(p => p[1]);
+            
+            const margin = 30;
+            const minX = Math.min(...allX) - margin;
+            const maxX = Math.max(...allX) + margin;
+            const minY = Math.min(...allY) - margin;
+            const maxY = Math.max(...allY) + margin;
+            
+            const width = maxX - minX;
+            const height = maxY - minY;
+        
+            // SVGの開始
+            let svg = `<?xml version="1.0" encoding="UTF-8"?>
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX} ${minY} ${width} ${height}">
+          <style>
+            .node-text { font-family: Arial, sans-serif; font-weight: bold; font-size: 10px; }
+            .node-id { font-family: Arial, sans-serif; font-size: 7px; fill: gray; }
+            .text-outline { stroke-width: 3; paint-order: stroke; }
+          </style>
+        `;
+        
+            // エッジを描画
+            for (const [nodeIdx, node] of Object.entries(tree)) {
+                if (node.parent >= 0) {
+                    const [x1, y1] = positions[node.parent];
+                    const [x2, y2] = positions[nodeIdx];
+                    svg += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="gray" stroke-width="1"/>\n`;
+                }
+            }
+        
+            // ノードを描画
+            for (const [nodeIdx, pos] of Object.entries(positions)) {
+                const node = tree[nodeIdx];
+                const [x, y] = pos;
+                const radius = 12;
+        
+                let fillColor, textColor, strokeColor;
+                if (parseInt(nodeIdx) === 0) {
+                    fillColor = '#4A90E2';
+                    textColor = 'white';
+                    strokeColor = 'black';
+                } else {
+                    if (startWithWhite) {
+                        fillColor = node.depth % 2 === 0 ? 'white' : 'black';
+                        textColor = node.depth % 2 === 0 ? 'black' : 'white';
+                        strokeColor = node.depth % 2 === 0 ? 'white' : 'black';
+                    } else {
+                        fillColor = node.depth % 2 === 0 ? 'black' : 'white';
+                        textColor = node.depth % 2 === 0 ? 'white' : 'black';
+                        strokeColor = node.depth % 2 === 0 ? 'white' : 'black';
+                    }
+                }
+        
+                const isLeaf = node.children.length === 0;
+        
+                // すべて円で描画
+                svg += `  <circle cx="${x}" cy="${y}" r="${radius}" fill="${fillColor}" stroke="#2C3E50" stroke-width="2"/>\n`;
+
+                // テキスト（値）- 縁取りと本体を別々に描画
+                const textOffsetY = 0; // すべて円なのでオフセット不要
+                const textY = y + textOffsetY;
+                // 縁取り（先に描画）
+                svg += `  <text x="${x}" y="${textY}" text-anchor="middle" dy="0.35em" class="node-text" fill="none" stroke="${strokeColor}" stroke-width="3">${escapeXml(node.value.toString())}</text>\n`;
+                // 本体（後で描画して上に重ねる）
+                svg += `  <text x="${x}" y="${textY}" text-anchor="middle" dy="0.35em" class="node-text" fill="${textColor}">${escapeXml(node.value.toString())}</text>\n`;
+
+            }
+        
+            svg += '</svg>';
+        
+            // ダウンロード
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'louds-tree.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function escapeXml(text) {
+            return text.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
         }
     </script>
 </body>
