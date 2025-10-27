@@ -500,14 +500,27 @@
 
                 const isLeaf = node.children.length === 0;
 
-                // 葉ノードも円で描画
-                ctx.fillStyle = color;
-                ctx.strokeStyle = '#2C3E50';
-                ctx.lineWidth = 2 * scale;
-                ctx.beginPath();
-                ctx.arc(sx, sy, radius, 0, 2 * Math.PI);
-                ctx.fill();
-                ctx.stroke();
+                if (isLeaf) {
+                    const size = radius;
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#2C3E50';
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy - size);
+                    ctx.lineTo(sx - size, sy + size);
+                    ctx.lineTo(sx + size, sy + size);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#2C3E50';
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
                 const fontSize = Math.max(6, 10 * scale);
                 ctx.font = `bold ${fontSize}px Arial`;
@@ -518,7 +531,7 @@
                 const outlineWidth = Math.max(1, 1.5 * scale);
 
                 // 三角形の場合は少し下にずらす
-                const textOffsetY = 0; // すべて円なのでオフセット不要
+                const textOffsetY = isLeaf ? radius * 0.2 : 0;
 
                 ctx.strokeStyle = outlineColor;
                 ctx.lineWidth = outlineWidth * 2;
@@ -713,11 +726,18 @@
         
                 const isLeaf = node.children.length === 0;
         
-                // すべて円で描画
-                svg += `  <circle cx="${x}" cy="${y}" r="${radius}" fill="${fillColor}" stroke="#2C3E50" stroke-width="2"/>\n`;
-
+                if (isLeaf) {
+                    // 三角形
+                    const size = radius;
+                    const points = `${x},${y - size} ${x - size},${y + size} ${x + size},${y + size}`;
+                    svg += `  <polygon points="${points}" fill="${fillColor}" stroke="#2C3E50" stroke-width="2.5"/>\n`;
+                } else {
+                    // 円
+                    svg += `  <circle cx="${x}" cy="${y}" r="${radius}" fill="${fillColor}" stroke="#2C3E50" stroke-width="2"/>\n`;
+                }
+        
                 // テキスト（値）- 縁取りと本体を別々に描画
-                const textOffsetY = 0; // すべて円なのでオフセット不要
+                const textOffsetY = isLeaf ? radius * 0.2 : 0;
                 const textY = y + textOffsetY;
                 // 縁取り（先に描画）
                 svg += `  <text x="${x}" y="${textY}" text-anchor="middle" dy="0.35em" class="node-text" fill="none" stroke="${strokeColor}" stroke-width="3">${escapeXml(node.value.toString())}</text>\n`;
